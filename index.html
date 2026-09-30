@@ -227,7 +227,7 @@ body.student-desk #bookStage #play{
 <script src="https://mrjkorea.github.io/mrj-signin/mrj-auth-boot.js" data-mrj-app="mrj-decodable-try-71"></script>
 <script>
 const TEST=false;
-const ASSET_V='dec20260930intro1';
+const ASSET_V='dec20261001mov1';
 const STUDENT_KEY='mrj-dec-student';
 const PIN_KEY='mrj-dec-pin';
 const AUTH_URL='https://script.google.com/macros/s/AKfycbwtJTUO3gbcMrlAwsn1feWxyp7Rw2cxpfe1bOT9v2rxmQHa2Tlc6pFNWAjU6ZAdlD6kFQ/exec';
@@ -1017,6 +1017,8 @@ function dictSpeaker(){
     ? `<img src="${asset('decodable/nia.png')}" alt="Nia">`
     : raw==='Car'
     ? `<img src="${asset('decodable/car.png')}" alt="the Car">`
+    : raw==='Pirate'
+    ? `<img src="${asset('decodable/pirate.png')}" alt="Pirate">`
     : `<div class="label" style="font-size:2rem;margin-bottom:6px">${name}</div>`;
   return `<div class="speaker">${face}<div class="label">${name} · says the sentence</div></div>`;
 }

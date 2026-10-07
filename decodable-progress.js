@@ -12,6 +12,64 @@
   "use strict";
 
   var LEGACY_DEVICE_SAVE_KEY = "mrj_dec_progress_v4";
+  /** Matches mrj-auth panel filter for mrj-decodable-try-71 (books 71–100). */
+  var DECODABLE_71_SCORE_ITEM_RE = /^mlr_dec_(07[1-9]|0[89]\d|100):/;
+
+  var pendingAuthEvents = [];
+  var authWire = null;
+
+  function handleAuthReadyEvent(ev) {
+    if (authWire && authWire.onAuthReady) authWire.onAuthReady(ev);
+    else pendingAuthEvents.push(ev);
+  }
+
+  function dispatchDecodableAuthReady(ev) {
+    handleAuthReadyEvent(ev);
+  }
+
+  /**
+   * Register before mrj-auth-boot.js so early session resume cannot miss mrj-auth-ready.
+   */
+  function wireDecodableAuth(config) {
+    authWire = config || null;
+    if (!authWire || !authWire.onAuthReady) {
+      pendingAuthEvents = [];
+      return;
+    }
+    pendingAuthEvents.forEach(function (ev) {
+      authWire.onAuthReady(ev);
+    });
+    pendingAuthEvents = [];
+  }
+
+  /**
+   * After decodable_library.json is loaded: show library when a session already exists.
+   */
+  function afterDecodableLibLoaded(state) {
+    state = state || {};
+    var getStudent =
+      typeof state.getStudent === "function" ? state.getStudent : function () {
+        return "";
+      };
+    var showLib =
+      typeof state.showLib === "function" ? state.showLib : function () {};
+    var runPackLoad =
+      typeof state.runPackLoad === "function" ? state.runPackLoad : function () {};
+    var id = String(getStudent() || "").trim();
+    if (!id) return { showedLib: false, startedPackLoad: false };
+    showLib();
+    runPackLoad();
+    return { showedLib: true, startedPackLoad: true };
+  }
+
+  function scoreItemId(bookId, section) {
+    if (!bookId || !section) return "";
+    return String(bookId) + ":" + String(section);
+  }
+
+  if (typeof window !== "undefined" && window.addEventListener) {
+    window.addEventListener("mrj-auth-ready", handleAuthReadyEvent);
+  }
 
   function studentIdKeyFromName(name) {
     if (!name) return "";
@@ -182,6 +240,11 @@
 
   return {
     LEGACY_DEVICE_SAVE_KEY: LEGACY_DEVICE_SAVE_KEY,
+    DECODABLE_71_SCORE_ITEM_RE: DECODABLE_71_SCORE_ITEM_RE,
+    wireDecodableAuth: wireDecodableAuth,
+    dispatchDecodableAuthReady: dispatchDecodableAuthReady,
+    afterDecodableLibLoaded: afterDecodableLibLoaded,
+    scoreItemId: scoreItemId,
     studentIdKeyFromName: studentIdKeyFromName,
     studentSaveKey: studentSaveKey,
     readStudentStore: readStudentStore,

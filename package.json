@@ -2,6 +2,6 @@
   "name": "mrj-decodable-try-71",
   "private": true,
   "scripts": {
-    "test": "node --test test/decodable-progress.test.js test/decodable-storage.test.js"
+    "test": "node --test test/decodable-progress.test.js test/decodable-storage.test.js test/decodable-auth-boot.test.js"
   }
 }

@@ -2,7 +2,7 @@
 <html lang="en" data-marker="dec20260930intro1">
 <head>
 <meta charset="UTF-8" />
-<meta name="mrj-build" content="dec71-20261007-merge" />
+<meta name="mrj-build" content="dec71-20261007-pill-auth" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <title>MRJ Decodables — Books 71–100</title>
 <style>
@@ -13,6 +13,21 @@ body{margin:0;font-family:ui-rounded,"Nunito","Avenir Next",system-ui,sans-serif
 body.student-desk{display:flex;flex-direction:column;height:100vh;height:100dvh;max-height:100dvh}
 .app{width:100%;max-width:none;margin:0;padding:8px 16px 0;flex:1 1 auto;min-height:0;display:flex;flex-direction:column;overflow:hidden}
 header{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px;flex:0 0 auto}
+header .student-pill{
+  flex:0 1 auto;
+  max-width:110px;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  padding:8px 10px;
+  font-size:clamp(.78rem,2.8vw,.9rem);
+  font-weight:800;
+  line-height:1.2;
+  background:#1b2740;
+  color:#ffd84a;
+}
+header .student-pill[hidden]{display:none!important}
 .app>.stage{flex:1 1 auto;min-height:0}
 #libStage,#introStage,#workStage,#signStage{overflow:auto}
 h1{font-size:1rem;margin:0}
@@ -185,6 +200,7 @@ body.student-desk #bookStage #play{
     </div>
     <select id="langPick" style="max-width:42%;margin:0 6px"></select>
     <button id="btnLibrary">📚 Books</button>
+    <button type="button" class="student-pill" data-mrj-name-pill hidden></button>
     <button id="btnSwitch" type="button">Switch</button>
   </header>
   <div id="signStage" hidden></div>
@@ -225,12 +241,12 @@ body.student-desk #bookStage #play{
 <script src="https://mrjkorea.github.io/mrj-decodable-try/pronounce/grade-browser.js"></script>
 <link rel="stylesheet" href="https://mrjkorea.github.io/mrj-signin/mrj-auth.css">
 <script src="https://mrjkorea.github.io/mrj-signin/mrj-auth.js"></script>
+<script src="decodable-progress.js?v=dec71-20261007-pill-auth"></script>
 <script src="https://mrjkorea.github.io/mrj-signin/mrj-auth-boot.js" data-mrj-app="mrj-decodable-try-71"></script>
-<script src="decodable-progress.js?v=dec71-20261007-merge"></script>
 <script>
 const TEST=false;
-const MRJ_BUILD='dec71-20261007-merge';
-const ASSET_V='dec71-20261007-merge';
+const MRJ_BUILD='dec71-20261007-pill-auth';
+const ASSET_V='dec71-20261007-pill-auth';
 const PROGRAM='decodable';
 const SAVE_THROTTLE_MS=17000;
 const STUDENT_KEY='mrj-dec-student';
@@ -436,6 +452,34 @@ function studentName(){
     return String(localStorage.getItem(STUDENT_KEY)||'').trim();
   } catch(e) { return ''; }
 }
+function syncStudentPill(){
+  const pill=document.querySelector('[data-mrj-name-pill]');
+  if(!pill) return;
+  const name=studentName();
+  if(!name){
+    pill.hidden=true;
+    pill.textContent='';
+    pill.removeAttribute('title');
+    return;
+  }
+  pill.hidden=false;
+  const compact=(window.innerWidth||800)<480;
+  const display=compact && name.length>10 ? name.slice(0,8)+'\u2026' : name;
+  pill.textContent=display;
+  if(compact && name.length>10) pill.title=name;
+  else pill.removeAttribute('title');
+}
+function onMrjAuthReady(ev){
+  const id=(ev && ev.detail && ev.detail.id) || studentName();
+  if(!id) return;
+  localStorage.setItem(STUDENT_KEY, id);
+  syncStudentPill();
+  runPackLoad();
+  if(lib) showLib();
+}
+if(window.MRJDecodableProgress && typeof MRJDecodableProgress.wireDecodableAuth==='function'){
+  MRJDecodableProgress.wireDecodableAuth({onAuthReady:onMrjAuthReady});
+}
 function studentPin(){ try{ return String(localStorage.getItem(PIN_KEY)||'').replace(/\D/g,'').slice(0,4); }catch(e){ return ''; } }
 function progressBlob(){
   const name=studentName();
@@ -558,11 +602,14 @@ function runPackLoad(){
     if(studentName()) showLib();
   });
 }
-function reportProgress(bookId, itemId, completed, scorePct){
+function reportProgress(bookId, sectionId, completed, scorePct){
   const name=studentName();
-  if(!name || !bookId || !itemId) return;
+  if(!name || !bookId || !sectionId) return;
+  const itemId=(window.MRJDecodableProgress && MRJDecodableProgress.scoreItemId)
+    ? MRJDecodableProgress.scoreItemId(bookId, sectionId)
+    : (bookId+':'+sectionId);
   const event={
-    event_id:'dec-'+bookId+'-'+itemId+'-'+Date.now().toString(36),
+    event_id:'dec-'+bookId+'-'+sectionId+'-'+Date.now().toString(36),
     event_kind:'decodable_progress',
     source:'decodable',
     app_name:'MRJ Decodables',
@@ -571,7 +618,7 @@ function reportProgress(bookId, itemId, completed, scorePct){
     item_id:itemId,
     item_type:'section',
     completed:completed===true,
-    metadata_json:JSON.stringify({student:name, section:itemId})
+    metadata_json:JSON.stringify({student:name, section:sectionId, book_id:bookId})
   };
   if(scorePct!=null && isFinite(+scorePct)) event.score_pct=Math.round(+scorePct);
   sheetPost(SCORE_URL, {
@@ -681,6 +728,7 @@ async function boot(){
   $('btnLibrary').onclick=()=>{ if(studentName()) showLib(); };
   $('btnSwitch').onclick=()=>{
     localStorage.removeItem(STUDENT_KEY);
+    syncStudentPill();
     if (window.MRJ_AUTH && MRJ_AUTH.signOut) MRJ_AUTH.signOut();
   };
   $('mListen').onclick=()=>setMode('listen');
@@ -699,12 +747,18 @@ async function boot(){
   $('play').onclick=()=>playPage(true);
   $('introGo').onclick=()=>introAdvance();
   window.addEventListener('pagehide', function(){ flushRemoteSave(true); });
-  window.addEventListener('mrj-auth-ready', function(ev){
-    const id=(ev.detail && ev.detail.id) || studentName();
-    if(!id) return;
-    localStorage.setItem(STUDENT_KEY, id);
+  window.addEventListener('resize', function(){ syncStudentPill(); });
+  syncStudentPill();
+  if(window.MRJDecodableProgress && typeof MRJDecodableProgress.afterDecodableLibLoaded==='function'){
+    MRJDecodableProgress.afterDecodableLibLoaded({
+      getStudent:studentName,
+      showLib:showLib,
+      runPackLoad:runPackLoad
+    });
+  } else if(studentName()){
+    showLib();
     runPackLoad();
-  });
+  }
 }
 function hideAll(){ ['signStage','libStage','introStage','bookStage','workStage'].forEach(id=>$(id).classList.add('hidden')); }
 function showLib(){

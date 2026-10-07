@@ -255,7 +255,6 @@ const GRADE_PATH='/api/grade';
 const $=id=>document.getElementById(id);
 const asset=p=>BASE+'assets/'+String(p||'').replace(/^assets\//,'')+'?v='+ASSET_V;
 const SAVE='mrj_dec_progress_v4';
-const legacyMigrated={};
 let packLoadState='pending';
 let saveQueuePending=false;
 let saveTimer=0;
@@ -386,42 +385,31 @@ let sayTries=0, sayBest=0, sayAdvanceTimer=0;
 function blankProg(){ return (window.MRJDecodableProgress && MRJDecodableProgress.blankProg) ? MRJDecodableProgress.blankProg() : {passed:false,listen:false,song:false,read:false,dictation:false,speak:false,readPages:{},difficulty:null,dictScore:null,speakPages:{}}; }
 function studentIdKey(){
   const name=studentName();
+  if(window.MRJDecodableProgress && MRJDecodableProgress.studentIdKeyFromName){
+    return MRJDecodableProgress.studentIdKeyFromName(name);
+  }
   if(!name) return '';
   return name.trim().toLowerCase().replace(/\s+/g,' ');
 }
 function saveStorageKey(){
   const idk=studentIdKey();
-  return idk ? (SAVE+':'+idk) : SAVE;
+  if(window.MRJDecodableProgress && MRJDecodableProgress.studentSaveKey){
+    return MRJDecodableProgress.studentSaveKey(idk);
+  }
+  return idk ? (SAVE+':'+idk) : '';
 }
 function readJsonKey(key){
   try{ return JSON.parse(localStorage.getItem(key)||'{}'); }catch(e){ return {}; }
 }
-function migrateLegacySave(){
-  const idk=studentIdKey();
-  const name=studentName();
-  if(!idk || !name || legacyMigrated[idk]) return;
-  legacyMigrated[idk]=true;
-  const legacy=readJsonKey(SAVE);
-  if(!legacy.byStudent && !legacy._settings) return;
-  const sk=saveStorageKey();
-  const cur=readJsonKey(sk);
-  cur.byStudent=cur.byStudent||{};
-  const legBooks=(legacy.byStudent&&legacy.byStudent[name])||{};
-  const curBooks=cur.byStudent[name]||{};
-  if(window.MRJDecodableProgress){
-    cur.byStudent[name]=MRJDecodableProgress.mergeDecodableBooks(curBooks, legBooks);
-  }else{
-    cur.byStudent[name]=Object.assign({}, curBooks, legBooks);
-  }
-  if(legacy._settings && !cur._settings) cur._settings=legacy._settings;
-  localStorage.setItem(sk, JSON.stringify(cur));
-}
 function loadAll(){
-  migrateLegacySave();
-  return readJsonKey(saveStorageKey());
+  const sk=saveStorageKey();
+  if(!sk) return {};
+  return readJsonKey(sk);
 }
 function saveAll(p){
-  localStorage.setItem(saveStorageKey(), JSON.stringify(p));
+  const sk=saveStorageKey();
+  if(!sk) return;
+  localStorage.setItem(sk, JSON.stringify(p));
 }
 function bookProg(id){
   const all=loadAll();
@@ -451,6 +439,10 @@ function studentName(){
 function studentPin(){ try{ return String(localStorage.getItem(PIN_KEY)||'').replace(/\D/g,'').slice(0,4); }catch(e){ return ''; } }
 function progressBlob(){
   const name=studentName();
+  const idk=studentIdKey();
+  if(window.MRJDecodableProgress && MRJDecodableProgress.progressBlobFromStorage){
+    return MRJDecodableProgress.progressBlobFromStorage(function(k){ return localStorage.getItem(k); }, idk, name);
+  }
   const all=loadAll();
   const books=(all.byStudent&&all.byStudent[name])||{};
   return JSON.stringify({v:1, books:books});

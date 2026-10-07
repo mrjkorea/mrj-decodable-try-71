@@ -11,6 +11,48 @@
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  var LEGACY_DEVICE_SAVE_KEY = "mrj_dec_progress_v4";
+
+  function studentIdKeyFromName(name) {
+    if (!name) return "";
+    return String(name).trim().toLowerCase().replace(/\s+/g, " ");
+  }
+
+  function studentSaveKey(idKey) {
+    if (!idKey) return "";
+    return LEGACY_DEVICE_SAVE_KEY + ":" + idKey;
+  }
+
+  function parseStoreJson(raw) {
+    try {
+      return JSON.parse(raw || "{}");
+    } catch (e) {
+      return {};
+    }
+  }
+
+  /** Per-student localStorage only — never reads the shared device-wide legacy key. */
+  function readStudentStore(getItem, idKey) {
+    var key = studentSaveKey(idKey);
+    if (!key) return {};
+    var raw = getItem(key);
+    if (raw == null || raw === "") return {};
+    return parseStoreJson(raw);
+  }
+
+  function booksForStudent(store, studentName) {
+    if (!store || !studentName) return {};
+    return (store.byStudent && store.byStudent[studentName]) || {};
+  }
+
+  function buildProgressBlob(studentName, store) {
+    return JSON.stringify({ v: 1, books: booksForStudent(store, studentName) });
+  }
+
+  function progressBlobFromStorage(getItem, idKey, studentName) {
+    return buildProgressBlob(studentName, readStudentStore(getItem, idKey));
+  }
+
   function blankProg() {
     return {
       passed: false,
@@ -139,6 +181,13 @@
   }
 
   return {
+    LEGACY_DEVICE_SAVE_KEY: LEGACY_DEVICE_SAVE_KEY,
+    studentIdKeyFromName: studentIdKeyFromName,
+    studentSaveKey: studentSaveKey,
+    readStudentStore: readStudentStore,
+    booksForStudent: booksForStudent,
+    buildProgressBlob: buildProgressBlob,
+    progressBlobFromStorage: progressBlobFromStorage,
     blankProg: blankProg,
     mergeBookProgress: mergeBookProgress,
     mergeDecodableBooks: mergeDecodableBooks,
